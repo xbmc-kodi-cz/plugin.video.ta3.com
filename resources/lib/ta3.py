@@ -21,14 +21,12 @@
 # */
 import calendar
 import cookielib
-import itertools
-import mimetools
-import mimetypes
-import re
+import urllib
 import urllib2
+import re
+from datetime import date
 
 import util
-from datetime import date
 from provider import ContentProvider
 
 
@@ -121,11 +119,10 @@ class TA3ContentProvider(ContentProvider):
     def __init__(self, username=None, password=None, filter=None, tmp_dir='/tmp'):
         ContentProvider.__init__(self, 'ta3.com', 'http://www.ta3.com/', username, password, filter, tmp_dir)
         self.cp = urllib2.HTTPCookieProcessor(cookielib.LWPCookieJar())
-        self.rh = TA3HTTPRedirectHandler()
         self.init_urllib()
 
     def init_urllib(self):
-        opener = urllib2.build_opener(self.cp,self.rh)
+        opener = urllib2.build_opener(self.cp)
         urllib2.install_opener(opener)
 
     def capabilities(self):
@@ -289,55 +286,20 @@ class TA3ContentProvider(ContentProvider):
 
     def _search(self, url, search_article="", category=None, publish_date=None, by_date=None, to_date=None, where=None):
         #self.info("_search url: '%s', article: '%s', category: '%s', pdate: '%s' bdate: '%s', tdate: '%s', where: '%s'"%(url, search_article, str(category), str(publish_date), str(by_date), str(to_date), str(where)))
-        if category is None:
-            category = '0'
+        params = {}
         if TLACOVE_BESEDY_URL in url:
             category = '147'
-        if by_date is None:
-            by_date = ""
-        else:
-            by_date = "%02d.%02d.%d" % (by_date)
-        if to_date is None:
-            to_date = ""
-        else:
-            to_date = "%02d.%02d.%d" % (to_date)
-        if publish_date is None:
-            publish_date = ""
-        else:
-            publish_date = "%02d.%02d.%d" % (publish_date)
-        form = MultiPartForm()
-        form.add_field('category', category)
-        if PUBLICISTIKA_URL in url:
-            form.add_field('publish_date', publish_date)
-        else:
-            form.add_field('by_date', by_date)
-            form.add_field('to_date', to_date)
-            if where is None:
-                 form.add_field('where[]', 'title')
-                 form.add_field('where[]', 'perex')
-                 form.add_field('where[]', 'content')
-                 form.add_field('where[]', 'tags')
-            else:
-                for w in where:
-                    form.add_field(w[0], w[1])
-        form.add_field('search_article', search_article)
-        if SPRAVODAJSTVO_URL in url:
-            form.add_field('formId', 'articleArchivFilterSpravodajstvo')
-        elif PUBLICISTIKA_URL in url:
-            form.add_field('formId', 'articleArchivFilterPublicistika')
-        elif TLACOVE_BESEDY_URL in url:
-            form.add_field('formId', 'articleArchivFilterBesedy')
-        request = urllib2.Request(url)
-        request.add_header('User-agent', util.UA)
-        body = str(form)
-        request.add_header('Referer', url)
-        request.add_header('Content-type', form.get_content_type())
-        request.add_header('Content-length', len(body))
-        request.add_data(body)
-        try:
-            return urllib2.urlopen(request).read()
-        except RedirectionException:
-            return urllib2.urlopen(url).read()
+        if category is not None:
+            params['c'] = category
+        if by_date is not None:
+            params['df'] = "%02d-%02d-%d" % (by_date)
+        if to_date is not None:
+            params['dt'] = "%02d-%02d-%d" % (to_date)
+        if publish_date is not None:
+            params['d'] = "%02d-%02d-%d" % (publish_date)
+        if params:
+            url += "?" + urllib.urlencode(params)
+        return util.request(url)
 
     def date(self, year, month, url):
         result = []
@@ -371,7 +333,6 @@ class TA3ContentProvider(ContentProvider):
            return select_cb(result)
        return result
 
-
     def _resolve_vod(self, item):
         resolved = []
         data = util.request(self._url(item['url']))
@@ -400,7 +361,6 @@ class TA3ContentProvider(ContentProvider):
             resolved.append(item)
         return resolved
 
-
     def _resolve_live(self, item):
         resolved = []
         data = util.request(self._url(item['url']))
@@ -424,75 +384,3 @@ class TA3ContentProvider(ContentProvider):
             break
         return resolved
 
-# source from http://pymotw.com/2/urllib2/
-class MultiPartForm(object):
-    """Accumulate the data to be used when posting a form."""
-
-    def __init__(self):
-        self.form_fields = []
-        self.files = []
-        self.boundary = mimetools.choose_boundary()
-        return
-
-    def get_content_type(self):
-        return 'multipart/form-data; boundary=%s' % self.boundary
-
-    def add_field(self, name, value):
-        """Add a simple field to the form data."""
-        self.form_fields.append((name, value))
-        return
-
-    def add_file(self, fieldname, filename, fileHandle, mimetype=None):
-        """Add a file to be uploaded."""
-        body = fileHandle.read()
-        if mimetype is None:
-            mimetype = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
-        self.files.append((fieldname, filename, mimetype, body))
-        return
-
-    def __str__(self):
-        """Return a string representing the form data, including attached files."""
-        # Build a list of lists, each containing "lines" of the
-        # request.  Each part is separated by a boundary string.
-        # Once the list is built, return a string where each
-        # line is separated by '\r\n'.
-        parts = []
-        part_boundary = '--' + self.boundary
-
-        # Add the form fields
-        parts.extend(
-            [ part_boundary,
-              'Content-Disposition: form-data; name="%s"' % name,
-              '',
-              value,
-            ]
-            for name, value in self.form_fields
-            )
-
-        # Add the files to upload
-        parts.extend(
-            [ part_boundary,
-              'Content-Disposition: file; name="%s"; filename="%s"' % \
-                 (field_name, filename),
-              'Content-Type: %s' % content_type,
-              '',
-              body,
-            ]
-            for field_name, filename, content_type, body in self.files
-            )
-
-        # Flatten the list and add closing boundary marker,
-        # then return CR+LF separated data
-        flattened = list(itertools.chain(*parts))
-        flattened.append('--' + self.boundary + '--')
-        flattened.append('')
-        return '\r\n'.join(flattened)
-
-
-class TA3HTTPRedirectHandler(urllib2.HTTPRedirectHandler):
-
-    def http_error_301(self, req, fp, code, msg, headers):
-        raise RedirectionException()
-
-class RedirectionException(Exception):
-    pass
