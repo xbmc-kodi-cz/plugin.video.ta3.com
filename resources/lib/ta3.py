@@ -33,12 +33,12 @@ from provider import ContentProvider
 
 
 SPRAVODAJSTVO_URL = 'http://www.ta3.com/archiv.html'
-SPRAVODAJSTVO_START = '<select id="articleArchivFilterSpravodajstvo-category" name="category"'
+SPRAVODAJSTVO_START = '<select id="articleArchivFilterSpravodajstvo-c" name="c"'
 SPRAVODAJSTVO_END = '</select>'
 SPRAVODAJSTVO_ITER_RE = r'<option\ value=\"(?P<id>\d+)\">(?P<title>[^<]+)</option>'
 
 PUBLICISTIKA_URL = 'http://www.ta3.com/archiv/publicistika.html'
-PUBLICISTIKA_START = '<select id="articleArchivFilterPublicistika-category" name="category"'
+PUBLICISTIKA_START = '<select id="articleArchivFilterPublicistika-c" name="c"'
 PUBLICISTIKA_END = '</select>'
 PUBLICISTIKA_ITER_RE = r'<option\ value=\"(?P<id>\d+)\">(?P<title>[^<]+)</option>'
 
