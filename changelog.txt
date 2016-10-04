@@ -1,3 +1,5 @@
+[B]1.1.2:[/B]
+- oprava listovania kategorii a relacii
 [B]1.1.1:[/B]
 - oprava listovania
 [B]1.1.0:[/B]
