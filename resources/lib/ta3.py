@@ -230,13 +230,16 @@ class TA3ContentProvider(ContentProvider):
             if manifest_url.startswith('//'):
                manifest_url = 'http:'+ manifest_url
             #print "manifest_url", manifest_url
-            manifest = util.request(manifest_url)
+            req = urllib2.Request(manifest_url)
+            resp = urllib2.urlopen(req)
+            manifest = resp.read()
+            resp.close()
             #print "manifest", manifest
             for m in re.finditer('RESOLUTION=\d+x(?P<resolution>\d+)\s*(?P<chunklist>[^\s]+)', manifest, re.DOTALL):
                 item = self.video_item()
                 item['surl'] = item['title']
                 item['quality'] = m.group('resolution') + 'p'
-                item['url'] = manifest_url[:manifest_url.rfind('/')+1] + m.group('chunklist')
+                item['url'] = resp.geturl().rsplit('/', 1)[0] + '/' + m.group('chunklist')
                 resolved.append(item)
             # only first manifest url looks to be is valid
             break
