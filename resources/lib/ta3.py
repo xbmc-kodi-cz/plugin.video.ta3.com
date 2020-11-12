@@ -201,6 +201,7 @@ class TA3ContentProvider(ContentProvider):
         url_format = re.search(r'my.embedurl = \[\{"src" : "([^"]+)"', player_data).group(1)
         #print "url_format", url_format
         manifest_url = "https:" + url_format.format(video_id)
+        manifest_url = urllib2.urlopen(manifest_url).geturl()
         #print "manifest_url", manifest_url
         manifest = util.request(manifest_url)
         print "manifest", manifest
