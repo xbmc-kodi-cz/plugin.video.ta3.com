@@ -20,7 +20,6 @@
 # *
 # */
 import os
-import urllib2
 
 sys.path.append(os.path.join (os.path.dirname(__file__), 'resources', 'lib'))
 import ta3

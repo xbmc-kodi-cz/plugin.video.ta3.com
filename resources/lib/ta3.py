@@ -20,13 +20,12 @@
 # *
 # */
 import calendar
-import cookielib
-import urllib
-import urllib2
-import urlparse
+import urllib.request, urllib.parse, urllib.error
+import urllib.parse
 import re
+import http.cookiejar
 from datetime import date
-
+import xbmc
 import util
 from provider import ContentProvider
 
@@ -35,12 +34,12 @@ class TA3ContentProvider(ContentProvider):
 
     def __init__(self, username=None, password=None, filter=None, tmp_dir='/tmp'):
         ContentProvider.__init__(self, 'ta3.com', 'http://www.ta3.com/', username, password, filter, tmp_dir)
-        self.cp = urllib2.HTTPCookieProcessor(cookielib.LWPCookieJar())
+        self.cp = urllib.request.HTTPCookieProcessor(http.cookiejar.LWPCookieJar())
         self.init_urllib()
 
     def init_urllib(self):
-        opener = urllib2.build_opener(self.cp)
-        urllib2.install_opener(opener)
+        opener = urllib.request.build_opener(self.cp)
+        urllib.request.install_opener(opener)
 
     def capabilities(self):
         return ['categories', 'resolve', '!download']
@@ -63,7 +62,7 @@ class TA3ContentProvider(ContentProvider):
             url = url.split("#")[-1]
             return self.date(year, month, url)
 
-        purl = urlparse.urlparse(url)
+        purl = urllib.parse.urlparse(url)
         if url.find("#") != -1:
             url = url[:url.find("#")]
 
@@ -122,15 +121,15 @@ class TA3ContentProvider(ContentProvider):
             next_url = next_page_match.group('url').replace('&amp;','&')
             # ta3.com gives invalid page urls for publicistika
             if "publicistika.html" in url:
-                purl = urlparse.urlparse(url)
-                pnext_url = urlparse.urlparse(next_url)
+                purl = urllib.parse.urlparse(url)
+                pnext_url = urllib.parse.urlparse(next_url)
                 next_url = "http://" + purl.netloc + purl.path + "?" + pnext_url.query
             item['url'] = next_url
             self._filter(result, item)
         return result
 
     def _build_url(self, url, category=None, date=None, by_date=None, to_date=None, page=None):
-        purl = urlparse.urlparse(url)
+        purl = urllib.parse.urlparse(url)
         if "publicistika.html" in purl.path:
             date = date or by_date or to_date
             if date is not None:
@@ -155,7 +154,7 @@ class TA3ContentProvider(ContentProvider):
         if page is not None:
             params['p'] = page
         if params:
-            url += "?" + urllib.urlencode(params)
+            url += "?" + urllib.parse.urlencode(params)
         return url
 
 
@@ -195,21 +194,17 @@ class TA3ContentProvider(ContentProvider):
         resolved = []
         data = util.request(self._url(item['url']))
         video_id = re.search("LiveboxPlayer.archiv\(.+?videoId:\s*'([^']+)'", data, re.DOTALL).group(1)
-        #print "video_id", video_id
         player_data = util.request("http://embed.livebox.cz/ta3_v2/vod-source.js", {'Referer':self._url(item['url'])})
-        #print "player_data", player_data
         url_format = re.search(r'my.embedurl = \[\{"src" : "([^"]+)"', player_data).group(1)
-        #print "url_format", url_format
         manifest_url = "https:" + url_format.format(video_id)
-        manifest_url = urllib2.urlopen(manifest_url).geturl()
-        #print "manifest_url", manifest_url
+        manifest_url = urllib.request.urlopen(manifest_url).geturl()
         manifest = util.request(manifest_url)
-        print "manifest", manifest
+        xbmc.log("manifest " + manifest)
         for m in re.finditer('#EXT-X-STREAM-INF:PROGRAM-ID=\d+,BANDWIDTH=(?P<bandwidth>\d+).*?(,RESOLUTION=(?P<resolution>\d+x\d+))?\s(?P<chunklist>[^\s]+)', manifest, re.DOTALL):
             item = self.video_item()
             item['surl'] = item['title']
             item['quality'] = m.group('bandwidth')
-            item['url'] = urlparse.urljoin(manifest_url, m.group('chunklist'))
+            item['url'] = urllib.parse.urljoin(manifest_url, m.group('chunklist'))
             resolved.append(item)
         resolved = sorted(resolved, key=lambda x:int(x['quality']), reverse=True)
         if len(resolved) == 3:
@@ -225,22 +220,19 @@ class TA3ContentProvider(ContentProvider):
         resolved = []
         data = util.request(self._url(item['url']))
         player_data = util.request("http://embed.livebox.cz/ta3_v2/live-source.js", {'Referer':self._url(item['url'])})
-        #print "player_data", player_data
         for m_manifest in re.finditer(r'\{"src"\s*:\s*"([^"]+)"\s*\}', player_data, re.DOTALL):
             manifest_url = m_manifest.group(1)
             if manifest_url.startswith('//'):
                manifest_url = 'http:'+ manifest_url
-            #print "manifest_url", manifest_url
-            req = urllib2.Request(manifest_url)
-            resp = urllib2.urlopen(req)
-            manifest = resp.read()
+            req = urllib.request.Request(manifest_url)
+            resp = urllib.request.urlopen(req)
+            manifest = resp.read().decode('utf-8')
             resp.close()
-            #print "manifest", manifest
-            for m in re.finditer('RESOLUTION=\d+x(?P<resolution>\d+)\s*(?P<chunklist>[^\s]+)', manifest, re.DOTALL):
+            for m in re.finditer('RESOLUTION=\d+x(?P<resolution>\d+)\s+(?P<chunklist>[^\s]+)', manifest, re.DOTALL):
                 item = self.video_item()
                 item['surl'] = item['title']
                 item['quality'] = m.group('resolution') + 'p'
-                item['url'] = resp.geturl().rsplit('/', 1)[0] + '/' + m.group('chunklist')
+                item['url'] = urllib.parse.urljoin(resp.geturl(), m.group('chunklist'))
                 resolved.append(item)
             # only first manifest url looks to be is valid
             break
