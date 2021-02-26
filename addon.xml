@@ -16,5 +16,8 @@
     <description lang="sk">Sledujte online TV archív zo serveru ta3.com</description>
     <platform>all</platform>
     <source>https://github.com/kodi-czsk/plugin.video.ta3.com</source>
+	<assets>
+            <icon>icon.png</icon>
+    </assets>
   </extension>
 </addon>
