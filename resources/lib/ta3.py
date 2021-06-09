@@ -50,7 +50,7 @@ class TA3ContentProvider(ContentProvider):
         item['title'] = 'Live'
         item['url'] = "live.html"
         result.append(item)
-        result.append(self.dir_item('Relacie', self.base_url + 'archiv.html#mycat'))
+        result.append(self.dir_item('Relácie', self.base_url + 'archiv.html#mycat'))
         return result
 
     def list(self, url):
