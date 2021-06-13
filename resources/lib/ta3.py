@@ -82,7 +82,7 @@ class TA3ContentProvider(ContentProvider):
             self.error("_list_categories: unknown category url: %s" % url)
             return []
         data = util.substr(page, start, '</section>')
-        for m in re.finditer('<a\ href=\"(?P<url>[^\"]+)\"\ title=\"(?P<title>[^\"]+)\"', data)
+        for m in re.finditer('<a\ href=\"(?P<url>[^\"]+)\"\ title=\"(?P<title>[^\"]+)\"', data):
             item = self.dir_item()
             item['url'] = self.base_url + m.group('url') 
             item['title'] = m.group('title')
