@@ -23,7 +23,7 @@ import os
 
 sys.path.append(os.path.join (os.path.dirname(__file__), 'resources', 'lib'))
 import ta3
-import xbmcprovider, xbmcaddon, xbmcutil, xbmcgui, xbmcplugin, xbmc
+import xbmcprovider, xbmcaddon, xbmcutil, xbmcgui, xbmcplugin, xbmcvfs
 import util, resolver
 
 __scriptid__ = 'plugin.video.ta3.com'
@@ -36,5 +36,5 @@ settings = {'downloads':__addon__.getSetting('downloads'), 'quality':__addon__.g
 params = util.params()
 if params == {}:
     xbmcutil.init_usage_reporting(__scriptid__)
-xbmcprovider.XBMCMultiResolverContentProvider(ta3.TA3ContentProvider(tmp_dir=xbmc.translatePath(__addon__.getAddonInfo('profile'))), settings, __addon__).run(params)
+xbmcprovider.XBMCMultiResolverContentProvider(ta3.TA3ContentProvider(tmp_dir=xbmcvfs.translatePath(__addon__.getAddonInfo('profile'))), settings, __addon__).run(params)
 
