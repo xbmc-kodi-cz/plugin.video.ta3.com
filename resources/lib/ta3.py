@@ -33,7 +33,7 @@ from provider import ContentProvider
 class TA3ContentProvider(ContentProvider):
 
     def __init__(self, username=None, password=None, filter=None, tmp_dir='/tmp'):
-        ContentProvider.__init__(self, 'ta3.com', 'http://www.ta3.com/', username, password, filter, tmp_dir)
+        ContentProvider.__init__(self, 'ta3.com', 'https://www.ta3.com/', username, password, filter, tmp_dir)
         self.cp = urllib.request.HTTPCookieProcessor(http.cookiejar.LWPCookieJar())
         self.init_urllib()
 
@@ -50,7 +50,7 @@ class TA3ContentProvider(ContentProvider):
         item['title'] = 'Live'
         item['url'] = "live.html"
         result.append(item)
-        result.append(self.dir_item('Relácie', self.base_url + 'archiv.html#mycat'))
+        result.append(self.dir_item('Relácie', self.base_url + 'archiv#mycat'))
         return result
 
     def list(self, url):
@@ -63,7 +63,7 @@ class TA3ContentProvider(ContentProvider):
         if purl.fragment == "mycat":
             url = url.split("#")[0]
             result = []
-            result.append(self.dir_item(url=url, type='new'))
+            #result.append(self.dir_item(url=url, type='new'))
             result.extend(self.list_categories(url))
             return result
             
@@ -78,12 +78,12 @@ class TA3ContentProvider(ContentProvider):
         result = []
         page = util.request(url)
         if 'archiv' in url:
-            start = '<section id="broadcast-categories-list">'
+            start = '<main class="tvshows_listing">'
         else:
             self.error("_list_categories: unknown category url: %s" % url)
             return []
-        data = util.substr(page, start, '</section>')
-        for m in re.finditer('<a\ href=\"(?P<url>[^\"]+)\"\ title=\"(?P<title>[^\"]+)\"', data):
+        data = util.substr(page, start, '</main>')
+        for m in re.finditer('<a\ href=\"(?P<url>[^\"]+)\"\ class.*?<h4>(?P<title>[^<]+)<\/h4>', data, re.DOTALL):
             item = self.dir_item()
             item['url'] = self.base_url + m.group('url') 
             item['title'] = m.group('title')
@@ -103,8 +103,8 @@ class TA3ContentProvider(ContentProvider):
         if '?page=' in url:
              data = util.substr(page, '<h4 class="archive-loop-title">Ďalšie v archíve</h4>','</main>')
         else:
-             data = util.substr(page, '<main class="main"','</main>')
-        listing_iter_re = r'<a href=\"(?P<url>[^\"]*)\" rel=\"bookmark\" >(?P<title>.*?)<\/a>'
+             data = util.substr(page, '<main class="tvshow"','</main>')
+        listing_iter_re = r'<a href=\"(?P<url>[^\"]*)\">(?P<title>[^<]*?)<\/a>\s+<\/h2>'
         for m in re.finditer(listing_iter_re, data, re.DOTALL ):
             item = self.video_item()
             item['title'] = m.group('title').strip()
@@ -133,7 +133,7 @@ class TA3ContentProvider(ContentProvider):
     def _resolve_vod(self, item):
         resolved = []
         data = util.request(self._url(item['url']))
-        video_id = re.search("LiveboxPlayer.archiv\(.+?videoId:\s*'([^']+)'", data, re.DOTALL).group(1)
+        video_id = re.search("LiveboxPlayer.archiv\(.+?\"videoId\":*\"([^\"]+)\"", data, re.DOTALL).group(1)
         player_data = util.request("http://embed.livebox.cz/ta3_v2/vod-source.js", {'Referer':self._url(item['url'])})
         url_format = re.search(r'my.embedurl = \[\{"src" : "([^"]+)"', player_data).group(1)
         manifest_url = "https:" + url_format.format(video_id)
@@ -159,11 +159,11 @@ class TA3ContentProvider(ContentProvider):
     def _resolve_live(self, item):
         resolved = []
         data = util.request(self._url(item['url']))
-        player_data = util.request("http://embed.livebox.cz/ta3_v2/live-source.js", {'Referer':self._url(item['url'])})
+        player_data = util.request("https://embed.livebox.cz/ta3_v2/live-source.js", {'Referer':self._url(item['url'])})
         for m_manifest in re.finditer(r'\{"src"\s*:\s*"([^"]+)"\s*\}', player_data, re.DOTALL):
             manifest_url = m_manifest.group(1)
             if manifest_url.startswith('//'):
-               manifest_url = 'http:'+ manifest_url
+               manifest_url = 'https:'+ manifest_url
             req = urllib.request.Request(manifest_url)
             resp = urllib.request.urlopen(req)
             manifest = resp.read().decode('utf-8')
@@ -177,5 +177,3 @@ class TA3ContentProvider(ContentProvider):
             # only first manifest url looks to be is valid
             break
         return resolved
-
-
